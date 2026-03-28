@@ -143,7 +143,7 @@ def predict_disease():
     precaution = precautions.get(best, "Consult doctor")
 
     result += f"\n💡 Precautions:\n{precaution}"
-    result += "\n\n⚠️ Not a medical diagnosis"
+    
 
     result_label.config(text=result)
 
