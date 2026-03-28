@@ -1,0 +1,182 @@
+import pandas as pd
+import re
+import tkinter as tk
+from tkinter import messagebox
+import speech_recognition as sr
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+
+
+# =====================================================
+# STEP 1: BIGGER DATASET (IMPROVES ACCURACY)
+# =====================================================
+
+data = {
+    "symptoms": [
+        "fever cough headache body pain",
+        "fever sore throat cough runny nose",
+        "chest pain shortness breath sweating",
+        "headache nausea dizziness light sensitivity",
+        "fever chills sweating weakness malaria",
+        "weight loss fatigue cough night sweats",
+        "high sugar frequent urination thirst fatigue",
+        "blurred vision high sugar tiredness fatigue",
+        "joint pain swelling stiffness arthritis",
+        "vomiting diarrhea stomach pain food poisoning",
+        "dry cough tiredness fever covid",
+        "chest pain nausea sweating heart attack",
+        "back pain stiffness joint swelling arthritis",
+        "fever fatigue headache viral infection",
+        "sore throat cough mild fever cold",
+        "excess thirst urination fatigue diabetes",
+        "abdominal pain vomiting nausea infection",
+        "breathing difficulty chest tightness asthma",
+        "runny nose sneezing cough cold",
+        "high fever severe headache chills malaria",
+        "persistent cough weight loss tuberculosis",
+        "wheezing shortness breath asthma",
+        "severe headache vomiting migraine",
+        "fatigue weakness high sugar diabetes"
+    ],
+
+    "disease": [
+        "Flu","Cold","Heart Disease","Migraine","Malaria",
+        "Tuberculosis","Diabetes","Diabetes","Arthritis",
+        "Food Poisoning","COVID-19","Heart Attack",
+        "Arthritis","Flu","Cold","Diabetes",
+        "Food Poisoning","Asthma","Cold","Malaria",
+        "Tuberculosis","Asthma","Migraine","Diabetes"
+    ]
+}
+
+df = pd.DataFrame(data)
+
+
+# =====================================================
+# STEP 2: CLEAN TEXT
+# =====================================================
+
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z ]', '', text)
+    return text
+
+df["symptoms"] = df["symptoms"].apply(clean_text)
+
+
+# =====================================================
+# STEP 3: MODEL TRAINING (IMPROVED)
+# =====================================================
+
+vectorizer = TfidfVectorizer(ngram_range=(1,2), max_features=2000)
+X = vectorizer.fit_transform(df["symptoms"])
+y = df["disease"]
+
+model = RandomForestClassifier(n_estimators=500, max_depth=10, random_state=42)
+model.fit(X, y)
+
+
+# =====================================================
+# STEP 4: PRECAUTIONS
+# =====================================================
+
+precautions = {
+    "Flu": "Rest, drink fluids, take paracetamol",
+    "Cold": "Stay warm, drink warm fluids",
+    "Migraine": "Avoid light, rest, reduce stress",
+    "Malaria": "Consult doctor, avoid mosquito bites",
+    "Diabetes": "Control sugar, exercise regularly",
+    "Heart Disease": "Healthy diet, avoid stress",
+    "Heart Attack": "Seek immediate medical help",
+    "COVID-19": "Isolate and consult doctor",
+    "Arthritis": "Exercise and physiotherapy",
+    "Food Poisoning": "Drink fluids and rest",
+    "Asthma": "Avoid dust, use inhaler",
+    "Tuberculosis": "Complete medication course"
+}
+
+
+# =====================================================
+# STEP 5: VOICE INPUT
+# =====================================================
+
+def voice_input():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        messagebox.showinfo("Voice Input", "Speak your symptoms...")
+        audio = r.listen(source)
+
+    try:
+        text = r.recognize_google(audio)
+        entry.delete(0, tk.END)
+        entry.insert(0, text)
+    except:
+        messagebox.showerror("Error", "Could not recognize voice")
+
+
+# =====================================================
+# STEP 6: PREDICTION
+# =====================================================
+
+def predict_disease():
+    symptoms = entry.get()
+
+    if not symptoms:
+        messagebox.showwarning("Warning", "Enter symptoms")
+        return
+
+    symptoms_clean = clean_text(symptoms)
+    data = vectorizer.transform([symptoms_clean])
+
+    probs = model.predict_proba(data)[0]
+    classes = model.classes_
+
+    top3 = sorted(zip(classes, probs), key=lambda x: x[1], reverse=True)[:3]
+
+    result = "🧠 Top Predictions:\n\n"
+
+    for d, p in top3:
+        result += f"{d} → {p:.2f}\n"
+
+    best = top3[0][0]
+    precaution = precautions.get(best, "Consult doctor")
+
+    result += f"\n💡 Precautions:\n{precaution}"
+    result += "\n\n⚠️ Not a medical diagnosis"
+
+    result_label.config(text=result)
+
+
+# =====================================================
+# STEP 7: GUI
+# =====================================================
+
+root = tk.Tk()
+root.title("🧠 AI Health Assistant")
+root.geometry("500x450")
+root.config(bg="#1e1e2f")
+
+title = tk.Label(root, text="AI Health Assistant", font=("Arial", 18, "bold"),
+                 bg="#1e1e2f", fg="white")
+title.pack(pady=10)
+
+label = tk.Label(root, text="Enter Symptoms:", bg="#1e1e2f", fg="white")
+label.pack()
+
+entry = tk.Entry(root, width=40, font=("Arial", 12))
+entry.pack(pady=10)
+
+btn1 = tk.Button(root, text="🎤 Voice Input", command=voice_input,
+                 bg="#2196F3", fg="white")
+btn1.pack(pady=5)
+
+btn2 = tk.Button(root, text="Predict Disease", command=predict_disease,
+                 bg="#4CAF50", fg="white")
+btn2.pack(pady=10)
+
+result_label = tk.Label(root, text="", bg="#1e1e2f",
+                        fg="yellow", justify="left")
+result_label.pack(pady=20)
+
+root.mainloop()
