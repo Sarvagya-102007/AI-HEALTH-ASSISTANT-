@@ -34,6 +34,4 @@ pip install pandas scikit-learn speechrecognition pyaudio
 
 python app.py
 
-## ⚠️ Disclaimer
 
-Not a medical diagnostic tool. For educational purposes only.
